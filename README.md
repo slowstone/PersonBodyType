@@ -17,5 +17,5 @@ Classify people by body type.
 3. Problem<br>
 1\) Can't Learning the GT.<br>
 &emsp;The Train loss lower than Val loss, and the Tarin acc higher than Val acc. The Train acc may be 90% but the Val acc is only 30% or less. The Train acc is error but I don't how it calculate. The acc is low while I calculate the acc by loading the model after training.<br>
-&emsp;May be due to unreasonable data partitioning. Because the fitness training person looks very small even if they have high bmi.
+&emsp;May be due to unreasonable data partitioning. Because the fitness training person looks very small even if they have high bmi.<br>
 &emsp;Analyze the calculation method of acc or Change the way the body is divided. Using shirtsize or pantsize to divid the body type.
