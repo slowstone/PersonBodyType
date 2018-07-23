@@ -11,7 +11,7 @@ import re
 import multiprocessing
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" # so the IDs match nvidia-smi
-os.environ["CUDA_VISIBLE_DEVICES"] = "0" # "0, 1" for multiple
+os.environ["CUDA_VISIBLE_DEVICES"] = "1" # "0, 1" for multiple
 
 # adam, momentum or nesterov
 opt_string = "momentum"
@@ -25,11 +25,13 @@ MOMENTUM = 0.9
 ADAM_BETA_1 = 0.9
 ADAM_BETA_2 = 0.99
 
+L2_SCALE = 0.001
+
 #base hyper-parameter
 INPUT_SHAPE = (1024,512,3)
 MEAN_PIXEL = np.array([93.2,104.6,116.6])
-BATCH_SIZE = 40
-VALIDATION_STEPS = 30
+BATCH_SIZE = 30
+VALIDATION_STEPS = 40
 CLASS_NUMS = 4
 IS_SAVE = True
 
@@ -37,6 +39,8 @@ im_dir = './dataset/image_women/'
 train_json = './dataset/women_train_label.json'
 val_json = './dataset/women_val_label.json'
 base_dir = './logs'
+model_path = './logs/res50_softmax_momentum_20180722T0055/res50_softmax_momentum_0047.h5'
+# model_path = None
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -45,17 +49,17 @@ tf.keras.backend.set_session(session)
 
 def build_model():
     resnet_model = tf.keras.applications.resnet50.ResNet50(include_top=False,
-                                weights='imagenet',input_shape=INPUT_SHAPE)
+                                weights='imagenet',input_shape=INPUT_SHAPE,pooling='avg')
     resnet_output = resnet_model.output
 
     resnet_input = resnet_model.input
 
-    fla_fm = tf.keras.layers.Flatten()(resnet_output)
+    #fla_fm = tf.keras.layers.Flatten()(resnet_output)
 
-    output = tf.keras.layers.Dense(CLASS_NUMS,activation='softmax',name='fc_softmax')(fla_fm)
+    output = tf.keras.layers.Dense(CLASS_NUMS,activation='softmax',name='fc_softmax')(resnet_output)
 
     sm_model = tf.keras.models.Model(inputs = resnet_input,outputs = output, name = 'res50_softmax')
-
+    
     return sm_model
 
 def set_trainable(pattern, keras_model=None, verbose=1):
@@ -229,7 +233,10 @@ layer_dict = {
         }
 
 model = build_model()
-train_layer = layer_dict['heads']
+if model_path is not None:
+    model.load_weights(model_path)
+
+train_layer = layer_dict['4+']
 set_trainable(train_layer,model)
 if opt_string == "momentum":
     opt = tf.keras.optimizers.SGD(lr=LEARNING_RATE,momentum=MOMENTUM)
@@ -237,8 +244,20 @@ if opt_string == "nesterov":
     opt = tf.keras.optimizers.SGD(lr=LEARNING_RATE,momentum=MOMENTUM,nesterov=True)
 if opt_string == "adam":
     opt = tf.keras.optimizers.Adam(lr=LEARNING_RATE,beta_1=ADAM_BETA_1,beta_2=ADAM_BETA_2)
-model.compile(optimizer=opt,loss='categorical_crossentropy',metrics=['categorical_accuracy'])
-#model.compile(optimizer=opt,loss='sparse_categorical_crossentropy',metrics=['sparse_categorical_accuracy'])
+    
+for w in model.trainable_weights:
+    tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
+    
+def myloss(y_true, y_pred):
+    regularizer = tf.contrib.layers.l2_regularizer(scale=L2_SCALE)
+    reg_loss = tf.contrib.layers.apply_regularization(regularizer)
+    loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+    all_loss = loss + reg_loss
+    return all_loss
+
+model.compile(optimizer=opt,loss=myloss,metrics=['categorical_accuracy','categorical_crossentropy'])
+# model.compile(optimizer=opt,loss='categorical_crossentropy',metrics=['categorical_accuracy'])
+# model.compile(optimizer=opt,loss='sparse_categorical_crossentropy',metrics=['sparse_categorical_accuracy'])
 
 # train_generator = generator(im_dir,train_json,BATCH_SIZE)
 train_generator = mysequence(im_dir, train_json, BATCH_SIZE)
@@ -247,9 +266,9 @@ val_generator = mysequence(im_dir, val_json, BATCH_SIZE)
 
 now = datetime.datetime.now()
 
-base_name = 'res50_softmax_' + opt_string
-log_dir = os.path.join(base_dir, base_name+"_{:%Y%m%dT%H%M}".format(now))
-checkpoint_path = os.path.join(log_dir, base_name+"_*epoch*.h5")
+base_name = 'res50_' + opt_string
+log_dir = os.path.join(base_dir, "{:%Y%m%dT%H%M}_".format(now)+base_name)
+checkpoint_path = os.path.join(log_dir, "ep_*epoch*.h5")
 checkpoint_path = checkpoint_path.replace("*epoch*", "{epoch:04d}")
 
 if IS_SAVE:
@@ -270,7 +289,7 @@ else:
 
 
 model.fit_generator(train_generator,
-                   steps_per_epoch = 100,
+                   steps_per_epoch = 200,
                    epochs = 100,
                    validation_data=val_generator,
                    validation_steps=VALIDATION_STEPS,
