@@ -1,7 +1,8 @@
 # User Add
 .idea/
 dataset/
-logs/
+*logs/*
+*.h5
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

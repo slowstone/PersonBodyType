@@ -1,57 +1,78 @@
-from collections import Iterator
-class datasetiter(Iterator):
-    def __init__(self,arrs):
-        self.index = 0
-        self.arrs = arrs
-    def __iter__(self):
-        return self
-    def __next__(self):
-        output = self.arrs[self.index]
-        self.index += 1
-        if self.index == len(self.arrs):
-            self.index = 0              
-        return output
-class Dataset:
-    def __init__(self,im_dir=None,label_path=None,batch_size=16,input_shape=(512,512,3)):
+import json
+import os
+import numpy as np
+import cv2
+import tensorflow as tf
+import random
+from config import Config
+
+class classify_sequence(tf.keras.utils.Sequence):
+    def __init__(self, im_dir, json_path,config = Config(),class_weights=[1,1,1,1]):
+        self.config = config
+        self.class_weights = class_weights
         self.im_dir = im_dir
-        self.label_path = label_path
-        self.h = input_shape[0]
-        self.w = input_shape[1]
-        self.c = input_shape[2]
-        if batch_size == 'full':
-            batch_size = len(self.name_list)
-        else:
-            assert type(batch_size) is int,"batch_size should be int or 'full'"
-            self.batch_size = batch_size
-        import json
-        f = open(self.label_path,'r')
-        self.label = json.load(f)
-        self.name_list = list(self.label.keys())
-        self.iter = datasetiter(self.name_list)
-    def read_im(self,path):
-        import cv2
+        f = open(json_path,'r')
+        self.info = json.load(f)
+        self.names = list(self.info.keys())
+        self.offset = 0
+        random.shuffle(self.names)
+        f.close()
+        self.test = {}
+    
+    def __len__(self):
+        return int(len(self.names) / self.config.param['BATCH_SIZE']) # the length is the number of batches
+    
+    def on_epoch_end(self):
+        self.offset = 0
+        random.shuffle(self.names)
+    
+    def imread(self,path):
         im = cv2.imread(path)
         if im is None:
             return None
-        re_im = cv2.resize(im,(self.h,self.w))
-        assert re_im.shape == (self.h,self.w,self.c) , re_im.shape
-        return re_im
-    def next_batch(self):
-        import os
-        i = 0
+
+        im = im/255
+        im_shape = self.config.param['INPUT_SHAPE']
+        im_pad = np.zeros(im_shape,dtype=np.float64)
+        h,w = im.shape[:2]
+        if h/w > im_shape[0]/im_shape[1]:
+            re_h = im_shape[0]
+            re_w = int(w * (re_h / h))
+        else:
+            re_w = im_shape[1]
+            re_h = int(h * (re_w / w))
+        re_im = cv2.resize(im,(re_w,re_h))
+        im_pad[:re_h,:re_w,:] = re_im.copy()
+        return im_pad
+    
+    def __getitem__(self, batch_id):
         images = []
         labels = []
-        while i < self.batch_size:
-            name = next(self.iter)
-            path = os.path.join(self.im_dir,name)
-            im = self.read_im(path)
-            if im is None:
-                continue
-            images.append(im)
-            label = self.label[name]['label']
-            labels.append(label)
-            i += 1
-        import numpy as np
+        for i in range(batch_id * self.config.param['BATCH_SIZE'], (batch_id+1) * self.config.param['BATCH_SIZE']):
+            names_num = len(self.names)
+            while True:
+                index = int((i+self.offset) % names_num)
+                name = self.names[index]
+                path = os.path.join(self.im_dir, name)
+                               
+                im = self.imread(path)
+                if im is None:
+                    self.offset += 1
+                    continue
+                label = self.info[name]['label']
+                if random.random() > self.class_weights[label]:
+                    self.offset += 1
+                    continue
+                images.append(im)
+                
+                if index not in self.test.keys():
+                    self.test[index] = 0
+                self.test[index] += 1
+                
+                labels.append(label)
+                break
         images = np.array(images)
         labels = np.array(labels)
-        return images,labels
+        #labels = (np.arange(CLASS_NUMS) == labels[:, None]).astype(np.float32)
+        labels = tf.keras.utils.to_categorical(labels,num_classes = self.config.param['CLASS_NUMS'])
+        return images, labels
