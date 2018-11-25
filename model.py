@@ -6,10 +6,17 @@ import multiprocessing
 
 L2_SCALE = 0.9
 
-def l2_reg_loss(y_true, y_pred):
+def l2_reg_cate_loss(y_true, y_pred):
     regularizer = tf.contrib.layers.l2_regularizer(scale=L2_SCALE)
     reg_loss = tf.contrib.layers.apply_regularization(regularizer)
     loss = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+    all_loss = loss + reg_loss
+    return all_loss
+
+def l2_reg_mean_squ_loss(y_true, y_pred):
+    regularizer = tf.contrib.layers.l2_regularizer(scale=L2_SCALE)
+    reg_loss = tf.contrib.layers.apply_regularization(regularizer)
+    loss = tf.keras.losses.mean_squared_error(y_true, y_pred)
     all_loss = loss + reg_loss
     return all_loss
 
@@ -30,12 +37,19 @@ class Model(object):
         if model == 'classify':
             self.model = self.build_classify_model()
         if model == 'regress':
-            self.model = self.build_classify_model()
+            self.model = self.build_regress_model()
         for w in self.model.trainable_weights:
             tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
         if model_path is not None:
             self.model.load_weights(model_path,by_name=True)
         self.set_trainable()
+        if model == 'classify':
+            loss = l2_reg_cate_loss
+            metrics = ['categorical_accuracy','categorical_crossentropy']
+        if model == 'regress':
+            loss = l2_reg_mean_squ_loss
+            metrics = [tf.keras.losses.mean_squared_error]
+        self.compile_fuc(loss=loss,metrics=metrics)
         
     def build_classify_model(self):
         architecture = self.config.param['ARCHITECTURE']
@@ -85,9 +99,9 @@ class Model(object):
 
         base_model_input = base_model.input
 
-        output = tf.keras.layers.Dense(self.config.param['CLASS_NUMS'],activation='softmax',name='fc_softmax')(base_model_output)
+        output = tf.keras.layers.Dense(self.config.param['BETA_NUMS'],activation='linear',name='fc_linear')(base_model_output)
 
-        sm_model = tf.keras.models.Model(inputs = base_model_input,outputs = output, name = architecture+'_softmax')
+        sm_model = tf.keras.models.Model(inputs = base_model_input,outputs = output, name = architecture+'_linear')
 
         return sm_model
     
@@ -124,9 +138,7 @@ class Model(object):
             if trainable and verbose > 0:
                 print(" ",layer.name)
     
-    def compile_fuc(self,loss =None):
-        if loss is None:
-            loss = l2_reg_loss
+    def compile_fuc(self,loss,metrics=None):
         if self.config.param['OPT_STRING'] == "momentum":
             opt = tf.keras.optimizers.SGD(lr=self.config.param['LEARNING_RATE'],
                                 momentum=self.config.param['MOMENTUM'])
@@ -138,12 +150,9 @@ class Model(object):
             opt = tf.keras.optimizers.Adam(lr=self.config.param['LEARNING_RATE'],
                                 beta_1=self.config.param['ADAM_BETA_1'],
                                 beta_2=self.config.param['ADAM_BETA_2'])
-        self.model.compile(optimizer=opt,loss=loss,metrics=['categorical_accuracy','categorical_crossentropy'])
-        # model.compile(optimizer=opt,loss='categorical_crossentropy',metrics=['categorical_accuracy'])
-        # model.compile(optimizer=opt,loss='sparse_categorical_crossentropy',metrics=['sparse_categorical_accuracy'])
+        self.model.compile(optimizer=opt,loss=loss,metrics=metrics)
                                   
     def train(self,train_generator,val_generator,callbacks):
-        self.compile_fuc()
         self.model.fit_generator(train_generator,
                    steps_per_epoch = self.config.param['TRAIN_STEPS'],
                    epochs = self.config.param['EPOCHS'],

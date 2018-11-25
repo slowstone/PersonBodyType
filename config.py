@@ -35,8 +35,10 @@ class Config(object):
         self.param['BATCH_SIZE'] = 50
         self.param['TRAIN_STEPS'] = 500
         self.param['VALIDATION_STEPS'] = 50
-        self.param['EPOCHS'] = 20
+        self.param['EPOCHS'] = 200
         self.param['CLASS_NUMS'] = 4
+        self.param['BETA_NUMS'] = 10
+        self.param['POSE_NUMS'] = 72
     
     def show_config(self):
         print("============== Param =============")
