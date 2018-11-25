@@ -19,7 +19,7 @@ class Config(object):
         self.param['ADAM_BETA_1'] = 0.9
         self.param['ADAM_BETA_2'] = 0.99
 
-        self.param['L2_SCALE'] = 0.001
+        self.param['L2_SCALE'] = 0.1
 
         #base hyper-parameter
         self.param['INPUT_SHAPE'] = (512,256,3)
@@ -39,6 +39,30 @@ class Config(object):
         self.param['CLASS_NUMS'] = 4
         self.param['BETA_NUMS'] = 10
         self.param['POSE_NUMS'] = 72
+        
+        self.param['MODEL_PATH'] = None
+#         self.param['MODEL_PATH'] = './logs/regress_up_20181125T1108/ep_0004.h5'
+
+        self.param['MODEL_NAME'] = 'regress'
+        self.param['IM_NAME'] = 'up-3d'
+        self.param['DATA_VERSION'] = 'up'
+        # model_name = 'regress'
+        # im_name = 'up-3d'
+        # data_version = 'up'
+        """
+        image_women: origin image
+        split: split by mask_rcnn
+        up-3d: 3d parts of up dataset
+        test_im: for test
+        """
+        """
+        v1: bmi im_women
+        v2: shape im_women
+        v3: shape im_women(Manual screening)
+        v4: shape split
+        v5: bmi split
+        up: SMPL up-3d
+        """
     
     def show_config(self):
         print("\n============== Param =============")

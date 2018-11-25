@@ -22,29 +22,11 @@ from model import Model
 model_config = Config()
 IS_SAVE = True
 
-model_name = 'regress'
-im_name = 'up-3d'
-data_version = 'up'
-# model_name = 'regress'
-# im_name = 'up-3d'
-# data_version = 'up'
-"""
-image_women: origin image
-split: split by mask_rcnn
-up-3d: 3d parts of up dataset
-test_im: for test
-"""
-"""
-v1: bmi im_women
-v2: shape im_women
-v3: shape im_women(Manual screening)
-v4: shape split
-v5: bmi split
-up: SMPL up-3d
-"""
+model_name = model_config.param['MODEL_NAME']
+im_name = model_config.param['IM_NAME']
+data_version = model_config.param['DATA_VERSION']
+
 base_dir = './logs'
-# model_path = './logs/res50_softmax_momentum_20180722T0055/res50_softmax_momentum_0047.h5'
-model_path = None
 
 im_dir = os.path.join('../dataset/bodytype/',im_name)
 
@@ -72,7 +54,7 @@ val_steps = int(val_nums/model_config.param['BATCH_SIZE'])
 model_config.set_param(['TRAIN_STEPS','VALIDATION_STEPS'],[train_steps,val_steps])
 model_config.show_config()
 
-model = Model(model_path,model_name,model_config)
+model = Model(model_config)
 
 now = datetime.datetime.now()
 

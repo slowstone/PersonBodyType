@@ -21,32 +21,23 @@ def l2_reg_mean_squ_loss(y_true, y_pred):
     return all_loss
 
 class Model(object):
-    layer_dict = {
-            # all layers but the backbone
-            "heads": r"(fc.*)",
-            # From a specific Resnet stage and up
-            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
-            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
-            "5+": r"(res5.*)|(bn5.*)|(fc.*)",
-            # All layers
-            "all": ".*",
-        }
-    def __init__(self,model_path = None,model = 'classify',config=Config()):
+    def __init__(self,config=Config()):
         self.config = config
         L2_SCALE = self.config.param['L2_SCALE']
-        if model == 'classify':
+        if self.config.param['MODEL_NAME'] == 'classify':
             self.model = self.build_classify_model()
-        if model == 'regress':
+        if self.config.param['MODEL_NAME'] == 'regress':
             self.model = self.build_regress_model()
         for w in self.model.trainable_weights:
-            tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
-        if model_path is not None:
-            self.model.load_weights(model_path,by_name=True)
+            if 'kernel' in w.name:
+                tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
+        if self.config.param['MODEL_PATH'] is not None:
+            self.model.load_weights(self.config.param['MODEL_PATH'],by_name=True)
         self.set_trainable()
-        if model == 'classify':
+        if self.config.param['MODEL_NAME'] == 'classify':
             loss = l2_reg_cate_loss
             metrics = ['categorical_accuracy','categorical_crossentropy']
-        if model == 'regress':
+        if self.config.param['MODEL_NAME'] == 'regress':
             loss = l2_reg_mean_squ_loss
             metrics = [tf.keras.losses.mean_squared_error]
         self.compile_fuc(loss=loss,metrics=metrics)
@@ -106,11 +97,21 @@ class Model(object):
         return sm_model
     
     def set_trainable(self,verbose=0):
+        layer_dict = {
+            # all layers but the backbone
+            "heads": r"(fc.*)",
+            # From a specific Resnet stage and up
+            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
+            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
+            "5+": r"(res5.*)|(bn5.*)|(fc.*)",
+            # All layers
+            "all": ".*",
+            }
         print("============> train from",self.config.param['TRAIN_FROM'])
         pattern = self.layer_dict[self.config.param['TRAIN_FROM']]
-        self.help_set_trainable(pattern,self.model,verbose)
+        self.resnet_set_trainable(pattern,self.model,verbose)
                                   
-    def help_set_trainable(self,pattern,model=None,verbose=1):
+    def resnet_set_trainable(self,pattern,model=None,verbose=1):
         """Sets model layers as trainable if their names match
         the given regular expression.
         """
@@ -125,7 +126,7 @@ class Model(object):
         for layer in layers:
             # Is the layer a model?
             if layer.__class__.__name__ == 'Model':
-                help_set_trainable(
+                resnet_set_trainable(
                     pattern, model=layer)
                 continue
 
