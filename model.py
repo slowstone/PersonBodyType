@@ -105,7 +105,8 @@ class Model(object):
 
         return sm_model
     
-    def set_trainable(self,verbose=1):
+    def set_trainable(self,verbose=0):
+        print("============> train from",self.config.param['TRAIN_FROM'])
         pattern = self.layer_dict[self.config.param['TRAIN_FROM']]
         self.help_set_trainable(pattern,self.model,verbose)
                                   
@@ -116,8 +117,8 @@ class Model(object):
         if model is None:
             model = self.model
         if verbose > 0:
-            print("\nIn:",model.name)
-            print("The trainable layers:")
+            print("\n==========>In:",model.name)
+            print("===========>The trainable layers:")
         # In multi-GPU training, we wrap the model. Get layers
         # of the inner model because they have the weights.
         layers = model.layers

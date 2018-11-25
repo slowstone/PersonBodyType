@@ -41,10 +41,10 @@ class Config(object):
         self.param['POSE_NUMS'] = 72
     
     def show_config(self):
-        print("============== Param =============")
+        print("\n============== Param =============")
         for key in self.param.keys():
             print(key,":",self.param[key])
-        print("==================================")
+        print("==================================\n")
     
     def save_config(self,out_dir = './',out_name = 'config.json'):
         if not os.path.exists(out_dir):

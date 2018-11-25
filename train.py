@@ -61,8 +61,13 @@ val_f = json.load(f)
 val_nums = len(val_f.keys())
 f.close()
 
-train_steps = int(train_nums/model_config.param['TRAIN_STEPS'])
-val_steps = int(val_nums/model_config.param['VALIDATION_STEPS'])
+print("====================dataset scale====================")
+print("=========> The number of train dataset: ",train_nums)
+print("=========> The number of val dataset: ",val_nums)
+print("=====================================================\n")
+
+train_steps = int(train_nums/model_config.param['BATCH_SIZE'])
+val_steps = int(val_nums/model_config.param['BATCH_SIZE'])
 
 model_config.set_param(['TRAIN_STEPS','VALIDATION_STEPS'],[train_steps,val_steps])
 model_config.show_config()
