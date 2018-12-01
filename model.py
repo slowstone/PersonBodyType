@@ -1,10 +1,11 @@
-import numpy as np
-import tensorflow as tf
 import re
-from config import Config
 import multiprocessing
+import tensorflow as tf
+import numpy as np
+from config import Config
+from dataset import imread
 
-L2_SCALE = 0.9
+L2_SCALE = 0.01
 
 def l2_reg_cate_loss(y_true, y_pred):
     regularizer = tf.contrib.layers.l2_regularizer(scale=L2_SCALE)
@@ -23,24 +24,35 @@ def l2_reg_mean_squ_loss(y_true, y_pred):
 class Model(object):
     def __init__(self,config=Config()):
         self.config = config
-        L2_SCALE = self.config.param['L2_SCALE']
-        if self.config.param['MODEL_NAME'] == 'classify':
-            self.model = self.build_classify_model()
-        if self.config.param['MODEL_NAME'] == 'regress':
-            self.model = self.build_regress_model()
-        for w in self.model.trainable_weights:
-            if 'kernel' in w.name:
-                tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
-        if self.config.param['MODEL_PATH'] is not None:
-            self.model.load_weights(self.config.param['MODEL_PATH'],by_name=True)
-        self.set_trainable()
-        if self.config.param['MODEL_NAME'] == 'classify':
-            loss = l2_reg_cate_loss
-            metrics = ['categorical_accuracy','categorical_crossentropy']
-        if self.config.param['MODEL_NAME'] == 'regress':
-            loss = l2_reg_mean_squ_loss
-            metrics = [tf.keras.losses.mean_squared_error]
-        self.compile_fuc(loss=loss,metrics=metrics)
+        if config.mode == 'train':
+            L2_SCALE = self.config.param['L2_SCALE']
+            if self.config.param['MODEL_NAME'] == 'classify':
+                self.model = self.build_classify_model()
+            if self.config.param['MODEL_NAME'] == 'regress':
+                self.model = self.build_regress_model()
+            for w in self.model.trainable_weights:
+                if 'kernel' in w.name:
+                    tf.add_to_collection(tf.GraphKeys.WEIGHTS,w)
+            if self.config.param['MODEL_PATH'] is not None:
+                self.model.load_weights(self.config.param['MODEL_PATH'],by_name=True)
+            self.set_trainable()
+            if self.config.param['MODEL_NAME'] == 'classify':
+                loss = l2_reg_cate_loss
+                metrics = ['categorical_accuracy','categorical_crossentropy']
+            if self.config.param['MODEL_NAME'] == 'regress':
+    #             loss = l2_reg_mean_squ_loss
+    #             metrics = [tf.keras.losses.mean_squared_error]
+#                 loss = tf.keras.losses.mean_squared_error
+                loss = 'mse'
+                metrics = ['mse','mae','mape']
+            self.compile_fuc(loss=loss,metrics=metrics)
+        if config.mode == 'eval':
+            if self.config.param['MODEL_NAME'] == 'classify':
+                self.model = self.build_classify_model()
+            if self.config.param['MODEL_NAME'] == 'regress':
+                self.model = self.build_regress_model()
+            if self.config.param['MODEL_PATH'] is not None:
+                self.model.load_weights(self.config.param['MODEL_PATH'],by_name=True)
         
     def build_classify_model(self):
         architecture = self.config.param['ARCHITECTURE']
@@ -101,14 +113,14 @@ class Model(object):
             # all layers but the backbone
             "heads": r"(fc.*)",
             # From a specific Resnet stage and up
-            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
-            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
-            "5+": r"(res5.*)|(bn5.*)|(fc.*)",
+            "res3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
+            "res4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(fc.*)",
+            "res5+": r"(res5.*)|(bn5.*)|(fc.*)",
             # All layers
             "all": ".*",
             }
         print("============> train from",self.config.param['TRAIN_FROM'])
-        pattern = self.layer_dict[self.config.param['TRAIN_FROM']]
+        pattern = layer_dict[self.config.param['TRAIN_FROM']]
         self.resnet_set_trainable(pattern,self.model,verbose)
                                   
     def resnet_set_trainable(self,pattern,model=None,verbose=1):
@@ -165,3 +177,24 @@ class Model(object):
                    max_queue_size = 10,
                    shuffle = True,
                    use_multiprocessing = True)
+        
+    def eval_one_image(self,path):
+        im = imread(path,self.config.param['INPUT_SHAPE'])
+        if im is None:
+            return im,None
+        im = np.array([im])
+        res = self.model.predict(im)
+        return im[0],res[0]
+    
+    def eval_dir(self,im_dir):
+        import os
+        im_names = os.listdir(im_dir)
+        outputs = {}
+        for i,name in enumerate(im_names):
+            im_path = os.path.join(im_dir,name)
+            im,res = self.eval_one_image(im_path)
+            outputs[name] = {}
+            outputs[name]['res'] = res
+            outputs[name]['im'] = im
+            print(i+1,'/',len(im_names),end='\r')
+        return outputs
