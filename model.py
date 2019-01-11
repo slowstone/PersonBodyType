@@ -21,6 +21,9 @@ def l2_reg_mean_squ_loss(y_true, y_pred):
     all_loss = loss + reg_loss
     return all_loss
 
+def myloss(y_true,y_pred):
+    return tf.keras.losses.mean_squared_error(y_true,y_pred)
+
 class Model(object):
     def __init__(self,config=Config()):
         self.config = config
@@ -40,12 +43,8 @@ class Model(object):
                 loss = l2_reg_cate_loss
                 metrics = ['categorical_accuracy','categorical_crossentropy']
             if self.config.param['MODEL_NAME'] == 'regress':
-    #             loss = l2_reg_mean_squ_loss
-    #             metrics = [tf.keras.losses.mean_squared_error]
-#                 loss = tf.keras.losses.mean_squared_error
-                loss = 'mse'
                 metrics = ['mse','mae','mape']
-            self.compile_fuc(loss=loss,metrics=metrics)
+            self.compile_fuc(loss=myloss,metrics=metrics)
         if config.mode == 'eval':
             if self.config.param['MODEL_NAME'] == 'classify':
                 self.model = self.build_classify_model()
@@ -122,7 +121,7 @@ class Model(object):
         print("============> train from",self.config.param['TRAIN_FROM'])
         pattern = layer_dict[self.config.param['TRAIN_FROM']]
         self.resnet_set_trainable(pattern,self.model,verbose)
-                                  
+
     def resnet_set_trainable(self,pattern,model=None,verbose=1):
         """Sets model layers as trainable if their names match
         the given regular expression.
@@ -151,7 +150,7 @@ class Model(object):
             # Print trainble layer names
             if trainable and verbose > 0:
                 print(" ",layer.name)
-    
+
     def compile_fuc(self,loss,metrics=None):
         if self.config.param['OPT_STRING'] == "momentum":
             opt = tf.keras.optimizers.SGD(lr=self.config.param['LEARNING_RATE'],
@@ -165,7 +164,7 @@ class Model(object):
                                 beta_1=self.config.param['ADAM_BETA_1'],
                                 beta_2=self.config.param['ADAM_BETA_2'])
         self.model.compile(optimizer=opt,loss=loss,metrics=metrics)
-                                  
+
     def train(self,train_generator,val_generator,callbacks):
         self.model.fit_generator(train_generator,
                    steps_per_epoch = self.config.param['TRAIN_STEPS'],
@@ -177,7 +176,7 @@ class Model(object):
                    max_queue_size = 10,
                    shuffle = True,
                    use_multiprocessing = True)
-        
+
     def eval_one_image(self,path):
         im = imread(path,self.config.param['INPUT_SHAPE'])
         if im is None:
@@ -185,7 +184,7 @@ class Model(object):
         im = np.array([im])
         res = self.model.predict(im)
         return im[0],res[0]
-    
+
     def eval_dir(self,im_dir):
         import os
         im_names = os.listdir(im_dir)

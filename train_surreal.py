@@ -16,42 +16,41 @@ tf.keras.backend.set_session(session)
 
 from callbacks import *
 from config import Config
-from dataset import classify_sequence,regress_sequence
+from dataset import surreal_sequence,regress_sequence
 from model import Model
 
 model_config = Config()
-IS_SAVE = False
+IS_SAVE = True
 
 model_name = model_config.param['MODEL_NAME']
-im_name = model_config.param['IM_NAME']
 data_version = model_config.param['DATA_VERSION']
 
+im_dir = '../dataset/SURREAL/summary/human'
+label_dir = '../dataset/SURREAL/summary/labels'
 base_dir = './logs'
 
-im_dir = os.path.join('../dataset/bodytype/',im_name)
+train_json_path = '../dataset/bodytype/SURREAL/train_names_sort.json'
+train_generator = surreal_sequence(train_json_path,im_dir,label_dir,model_config)
+# val_json_path = '../dataset/bodytype/dataset_up_val.json'
+# val_generator = regress_sequence('../dataset/bodytype/up-3d-box/',val_json_path,model_config)
+val_json_path = '../dataset/bodytype/SURREAL/val_names_sort.json'
+val_generator = surreal_sequence(val_json_path,im_dir,label_dir,model_config)
 
-train_json = '../dataset/bodytype/dataset_' + data_version + '_train.json'
-val_json = '../dataset/bodytype/dataset_' + data_version + '_val.json'
+model_config.set_param(['TRAIN_JSON_PATH','VAL_JSON_PATH'],[train_json_path,val_json_path])
 
-f = open(train_json,'r')
-train_f = json.load(f)
-train_nums = len(train_f.keys())
-f.close()
-
-f = open(val_json,'r')
-val_f = json.load(f)
-val_nums = len(val_f.keys())
-f.close()
+train_nums = train_generator.names_num
+val_nums = val_generator.names_num
 
 print("====================dataset scale====================")
-print("=========> The number of train dataset: ",train_nums)
-print("=========> The number of val dataset: ",val_nums)
+print("=========> Train dataset: {},{}".format(train_json_path,train_nums))
+print("=========> Val dataset: {},{}".format(val_json_path,val_nums))
 print("=====================================================\n")
 
-train_steps = int(train_nums/model_config.param['BATCH_SIZE'])
+# train_steps = int(train_nums/model_config.param['BATCH_SIZE'])
+train_steps = 10000
 val_steps = int(val_nums/model_config.param['BATCH_SIZE'])
-
 model_config.set_param(['TRAIN_STEPS','VALIDATION_STEPS'],[train_steps,val_steps])
+
 model_config.show_config()
 
 model = Model(model_config)
@@ -77,20 +76,5 @@ else:
     callbacks = [
 #             tf.keras.callbacks.LearningRateScheduler(lrdecay),
         ]
-    
-if model_name == 'classify':
-    if data_version == 'v2' or data_version == 'v3' or data_version == 'v4':
-        class_weights=[0.2,0.5,1,0.8]
-    # for shape
-    # 0:u"yHourglass",1:u"yPear",2:u"yApple",3:u"yBanana"
-    if data_version == 'v1' or data_version == 'v5':
-        class_weights=[1,0.3,0.4,0.2]
-    # for bmi
-    # 0 偏瘦	<= 18.4  1 正常	18.5 ~ 23.9   2 过重	24.0 ~ 27.9  3 肥胖	>= 28.0
-    train_generator = classify_sequence(im_dir,train_json,model_config,class_weights)
-    val_generator = classify_sequence(im_dir,val_json,model_config)
-if model_name == 'regress':
-    train_generator = regress_sequence(im_dir,train_json,model_config)
-    val_generator = regress_sequence(im_dir,val_json,model_config)
 
 model.train(train_generator,val_generator,callbacks)

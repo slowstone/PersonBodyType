@@ -7,33 +7,36 @@ class Config(object):
         self.param = {}
         self.param['ARCHITECTURE'] = 'res50'
         # res50 vgg16 vgg19 incepv3 xception
-        self.param['INPUT_SHAPE'] = (512,256,3)
+        self.param['INPUT_SHAPE'] = (240,240,3)
         # h w c
         self.param['MODEL_NAME'] = 'regress'
         self.param['CLASS_NUMS'] = 4
         self.param['BETA_NUMS'] = 10
         self.param['POSE_NUMS'] = 72
-        self.param['MODEL_PATH'] = './logs/regress_up_20181127T2309/ep_0004.h5'
-        
+#         self.param['MODEL_PATH'] = './logs/regress_up_20181205T0934/ep_0100.h5'
+#         self.param['MODEL_PATH'] = './logs/regress_surreal-human_20190104T1915/ep_0007.h5'
+        self.param['MODEL_PATH'] = None
+
         if mode == 'train':
             self.train_init()
-    
+
     def train_init(self):
-        self.param['TRAIN_FROM'] = 'res4+'
+        self.param['TRAIN_FROM'] = 'all'
         """
         res50: all,res3+,res4+,res5+,head
         vgg16:all,head
         vgg19:all,head
         other network hadn't test
         """
+        self.param['BATCH_SIZE'] = 50
         """
         # GPU Titan X 16G
         # 60 for head  in res50
         # 50 for res4+
         # 40 for res3+
         """
-        self.param['IM_NAME'] = 'up-3d-box'
-        self.param['DATA_VERSION'] = 'up'
+        self.param['IM_NAME'] = 'surreal-human'
+        self.param['DATA_VERSION'] = 'surreal-human'
         """
         image_women: origin image
         split: split by mask_rcnn
@@ -42,6 +45,8 @@ class Config(object):
         up-3d-box: cut up-3d by box
         up-3d-mask: change up-3d(RGB) to mask (01 matrix)(one channel copy to three channel)
         up-3d-mask-box: cut up-3d mask by box (01 matrix)(one channel copy to three channel)
+        surreal: surreal dataset
+        surreal-human: cut up-3d mask by box (01 matrix)(one channel copy to three channel)
         """
         """
         v1: bmi im_women
@@ -50,14 +55,16 @@ class Config(object):
         v4: shape split
         v5: bmi split
         up: SMPL up-3d using for im_name with up-3d*
+        surreal: just for record
+        surreal-human: just for record
         """
-        self.param['BATCH_SIZE'] = 50
+
         """
         # adam, momentum or nesterov
         """
         self.param['OPT_STRING'] = "adam"
 
-        self.param['LEARNING_RATE'] = 0.001
+        self.param['LEARNING_RATE'] = 0.01
         #using in lr decay
         self.param['LR_DECAY'] = 0.95
         #using in momentum and nesterov
@@ -71,18 +78,18 @@ class Config(object):
         #base hyper-parameter
         self.param['MEAN_PIXEL'] = [93.2,104.6,116.6]
 
-        
-        self.param['TRAIN_STEPS'] = 500
-        self.param['VALIDATION_STEPS'] = 50
-        self.param['EPOCHS'] = 20
-        
+
+        self.param['TRAIN_STEPS'] = 10000
+        self.param['VALIDATION_STEPS'] = 1000
+        self.param['EPOCHS'] = 100
+
     def show_config(self):
         print("\n============== Param =============")
         print("===========>config mode",self.mode)
         for key in self.param.keys():
             print(key,":",self.param[key])
         print("==================================\n")
-    
+
     def set_config(self,file_path):
         print("\n======set config from file=======")
         print(file_path)
@@ -91,14 +98,14 @@ class Config(object):
         for key in self.param:
             self.param[key] = json_infos[key]
         print("==================================\n")
-    
+
     def save_config(self,out_dir = './',out_name = 'config.json'):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
         out_path = os.path.join(out_dir,out_name)
         f = open(out_path,'w')
         f.write(json.dumps(self.param,indent=2))
-    
+
     def set_param(self,keys,datas):
         for i,key in enumerate(keys):
             self.param[key] = datas[i]

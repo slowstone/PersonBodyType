@@ -3,6 +3,7 @@
 dataset/
 *logs/*
 *.h5
+eval/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
