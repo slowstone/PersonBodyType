@@ -11,7 +11,7 @@ class Config(object):
         # h w c
         self.param['MODEL_NAME'] = 'regress'
         self.param['CLASS_NUMS'] = 4
-        self.param['BETA_NUMS'] = 10
+        self.param['BETA_NUMS'] = 1
         self.param['POSE_NUMS'] = 72
 #         self.param['MODEL_PATH'] = './logs/regress_up_20181205T0934/ep_0100.h5'
 #         self.param['MODEL_PATH'] = './logs/regress_surreal-human_20190104T1915/ep_0007.h5'
@@ -21,7 +21,7 @@ class Config(object):
             self.train_init()
 
     def train_init(self):
-        self.param['TRAIN_FROM'] = 'all'
+        self.param['TRAIN_FROM'] = 'res4+'
         """
         res50: all,res3+,res4+,res5+,head
         vgg16:all,head
@@ -35,12 +35,14 @@ class Config(object):
         # 50 for res4+
         # 40 for res3+
         """
-        self.param['IM_NAME'] = 'surreal-human'
-        self.param['DATA_VERSION'] = 'surreal-human'
+        self.param['IM_NAME'] = 'image_women_human'
+        self.param['DATA_VERSION'] = 'v6'
         """
         image_women: origin image
         split: split by mask_rcnn
         test_im: for test
+        image_women_human: cut image by mask
+        image_women_mask: mask for image_women
         up-3d: 3d parts of up dataset
         up-3d-box: cut up-3d by box
         up-3d-mask: change up-3d(RGB) to mask (01 matrix)(one channel copy to three channel)
@@ -49,14 +51,16 @@ class Config(object):
         surreal-human: cut up-3d mask by box (01 matrix)(one channel copy to three channel)
         """
         """
-        v1: bmi im_women
-        v2: shape im_women
-        v3: shape im_women(Manual screening)
-        v4: shape split
-        v5: bmi split
-        up: SMPL up-3d using for im_name with up-3d*
-        surreal: just for record
-        surreal-human: just for record
+        v1: bmi im_women                      use IM_NAME = image_women
+        v2: shape im_women                     use IM_NAME = image_women
+        v3: shape im_women(Manual screening)         use IM_NAME = image_women
+        v4: shape split                       use IM_NAME = split
+        v5: bmi split                        use IM_NAME = split
+        v6: bmi human                        use IM_NAME = image_women_human
+        v7: shape human                       use IM_NAME = image_women_human
+        up: SMPL up-3d using for im_name with up-3d*    use IM_NAME = up-3d*
+        surreal: just for record                 use train_surreal.py
+        surreal-human: just for record             use train_surreal.py
         """
 
         """

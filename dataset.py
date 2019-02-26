@@ -108,7 +108,10 @@ class regress_sequence(tf.keras.utils.Sequence):
                 if im is None:
                     self.offset += 1
                     continue
-                label = self.info[name]['betas']
+                if name not in self.info.keys():
+                    self.offset += 1
+                    continue
+                label = self.info[name]['bmi']
                 images.append(im)
                 labels.append(label)
                 break

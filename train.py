@@ -20,7 +20,7 @@ from dataset import classify_sequence,regress_sequence
 from model import Model
 
 model_config = Config()
-IS_SAVE = False
+IS_SAVE = True
 
 model_name = model_config.param['MODEL_NAME']
 im_name = model_config.param['IM_NAME']

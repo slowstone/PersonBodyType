@@ -21,8 +21,12 @@ def l2_reg_mean_squ_loss(y_true, y_pred):
     all_loss = loss + reg_loss
     return all_loss
 
-def myloss(y_true,y_pred):
+def myloss_regress(y_true,y_pred):
     return tf.keras.losses.mean_squared_error(y_true,y_pred)
+
+def myloss_classify(y_true,y_pred):
+    return tf.keras.losses.categorical_crossentropy(y_true, y_pred)
+#     return tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred)
 
 class Model(object):
     def __init__(self,config=Config()):
@@ -40,11 +44,12 @@ class Model(object):
                 self.model.load_weights(self.config.param['MODEL_PATH'],by_name=True)
             self.set_trainable()
             if self.config.param['MODEL_NAME'] == 'classify':
-                loss = l2_reg_cate_loss
+                loss = myloss_classify
                 metrics = ['categorical_accuracy','categorical_crossentropy']
             if self.config.param['MODEL_NAME'] == 'regress':
                 metrics = ['mse','mae','mape']
-            self.compile_fuc(loss=myloss,metrics=metrics)
+                loss = myloss_regress
+            self.compile_fuc(loss=loss,metrics=metrics)
         if config.mode == 'eval':
             if self.config.param['MODEL_NAME'] == 'classify':
                 self.model = self.build_classify_model()
